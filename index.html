@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School-Zone & Ambulance Corridor Agent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #090d16;
+            --bg-card: #0f172a;
+            --border-color: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --color-normal: #10b981;
+            --color-delayed: #f59e0b;
+            --color-held: #ef4444;
+            --color-school: #3b82f6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+
+        .header-title h1 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to right, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-title p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 4px;
+        }
+
+        .badges {
+            display: flex;
+            gap: 10px;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-safe { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid #059669; }
+        .badge-sandbox { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid #475569; }
+
+        /* Shared Map Visualizer */
+        .map-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .map-header h2 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend {
+            display: flex;
+            gap: 16px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .map-canvas-container {
+            width: 100%;
+            height: 320px;
+            background: #060911;
+            border-radius: 12px;
+            border: 1px solid #1e293b;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Controls & Demo Grid */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .demo-box {
+            background: #090d16;
+            border: 2px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .demo-box.active-bell {
+            border-color: var(--color-school);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+        }
+
+        .demo-box.active-amb {
+            border-color: var(--color-held);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+        }
+
+        .demo-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .demo-val-normal {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .demo-val-struck {
+            text-decoration: line-through;
+            color: #64748b;
+        }
+
+        .demo-alert-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            margin-top: 12px;
+        }
+
+        .demo-val-active {
+            font-size: 2.2rem;
+            font-weight: 900;
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 4px;
+        }
+
+        /* Buttons */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        button {
+            cursor: pointer;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            border: none;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-emergency {
+            background: #dc2626;
+            color: #ffffff;
+        }
+        .btn-emergency:hover {
+            background: #b91c1c;
+        }
+
+        .btn-secondary {
+            background: #1e293b;
+            color: var(--text-main);
+            border: 1px solid #334155;
+        }
+        .btn-secondary:hover {
+            background: #334155;
+        }
+
+        /* Rule 1 & Rule 2 Gate Box */
+        .gate-card {
+            background: linear-gradient(135deg, #1e1b4b, #0f172a);
+            border: 2px solid #4338ca;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .gate-card.cap-reached {
+            background: linear-gradient(135deg, #450a0a, #1e0909);
+            border: 2px solid #ef4444;
+            animation: pulse-gate 1.5s infinite;
+        }
+
+        @keyframes pulse-gate {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 10px;
+            background: #1e293b;
+            border-radius: 9999px;
+            overflow: hidden;
+            margin: 14px 0;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: #38bdf8;
+            transition: width 0.3s ease, background 0.3s ease;
+        }
+
+        .progress-bar-fill.warning {
+            background: #ef4444;
+        }
+
+        .gate-alert-msg {
+            display: none;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid #ef4444;
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin-top: 14px;
+            color: #fca5a5;
+        }
+
+        .gate-alert-msg.visible {
+            display: block;
+        }
+
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 12px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .toggle-switch input {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-title">
+                <h1>🚦 School-Zone & Ambulance Corridor Agent</h1>
+                <p>Autonomous agent balancing pedestrian dismissal rush with emergency corridor preemption under a 60s hard cap.</p>
+            </div>
+            <div class="badges">
+                <span class="badge badge-safe">🛡️ Safety First: Invariant Locked</span>
+                <span class="badge badge-sandbox">🧪 Simulation Sandbox</span>
+            </div>
+        </header>
+
+        <!-- Rule 3: Shared Map -->
+        <section class="map-section">
+            <div class="map-header">
+                <h2>🗺️ Shared Corridor Map (Rule 3)</h2>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--color-normal);"></div> Normal</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--color-delayed);"></div> Delayed</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--color-held);"></div> Held</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: #dc2626;"></div> Ambulance</div>
+                    <div class="legend-item"><div class="legend-dot" style="background: var(--color-school);"></div> School Crossing</div>
+                </div>
+            </div>
+            <div class="map-canvas-container">
+                <svg id="corridorSvg" width="100%" height="100%" viewBox="0 0 900 320">
+                    <!-- Main Arterial Road -->
+                    <line x1="60" y1="190" x2="840" y2="190" stroke="#1e293b" stroke-width="32" stroke-linecap="round"/>
+                    <line id="mainCorridorLine" x1="60" y1="190" x2="840" y2="190" stroke="#334155" stroke-width="4" stroke-dasharray="8 6"/>
+
+                    <!-- North Bypass Fallback Road -->
+                    <path d="M 180 190 L 450 90 L 720 190" fill="none" stroke="#1e293b" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path id="bypassCorridorLine" d="M 180 190 L 450 90 L 720 190" fill="none" stroke="#475569" stroke-width="4" stroke-dasharray="6 6"/>
+
+                    <!-- Cross Streets -->
+                    <line x1="180" y1="110" x2="180" y2="270" stroke="#0f172a" stroke-width="16"/>
+                    <line x1="450" y1="190" x2="450" y2="290" stroke="#0f172a" stroke-width="16"/>
+                    <line x1="720" y1="110" x2="720" y2="270" stroke="#0f172a" stroke-width="16"/>
+
+                    <!-- Marked School Crosswalk C1 at J2 -->
+                    <g id="crosswalkGroup" transform="translate(420, 172)">
+                        <rect x="0" y="0" width="8" height="36" fill="#f8fafc" rx="1"/>
+                        <rect x="14" y="0" width="8" height="36" fill="#f8fafc" rx="1"/>
+                        <rect x="28" y="0" width="8" height="36" fill="#f8fafc" rx="1"/>
+                        <rect x="42" y="0" width="8" height="36" fill="#f8fafc" rx="1"/>
+                        <rect x="56" y="0" width="8" height="36" fill="#f8fafc" rx="1"/>
+                    </g>
+                    <g transform="translate(450, 245)">
+                        <rect id="pedBadgeBg" x="-65" y="-12" width="130" height="24" rx="12" fill="#10b981" opacity="0.95"/>
+                        <text id="pedBadgeText" x="0" y="4" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">🚸 CROSSING: 20s</text>
+                    </g>
+
+                    <!-- Junction J1 -->
+                    <circle id="nodeJ1" cx="180" cy="190" r="26" fill="#10b981" stroke="#ffffff" stroke-width="3"/>
+                    <text x="180" y="196" font-size="14" font-weight="800" fill="#ffffff" text-anchor="middle">J1</text>
+                    <text x="180" y="235" font-size="12" font-weight="600" fill="#94a3b8" text-anchor="middle">Corridor Entry</text>
+
+                    <!-- Junction J4 (North Bypass) -->
+                    <circle id="nodeJ4" cx="450" cy="90" r="22" fill="#10b981" stroke="#ffffff" stroke-width="3"/>
+                    <text x="450" y="95" font-size="13" font-weight="800" fill="#ffffff" text-anchor="middle">J4</text>
+                    <text x="450" y="60" font-size="11" font-weight="600" fill="#94a3b8" text-anchor="middle">Bypass Node</text>
+
+                    <!-- Junction J2 (School Zone) -->
+                    <circle id="nodeJ2" cx="450" cy="190" r="26" fill="#10b981" stroke="#ffffff" stroke-width="3"/>
+                    <text x="450" y="196" font-size="14" font-weight="800" fill="#ffffff" text-anchor="middle">J2</text>
+                    <text x="450" y="150" font-size="12" font-weight="700" fill="#38bdf8" text-anchor="middle">School Zone</text>
+
+                    <!-- Junction J3 (Hospital Exit) -->
+                    <circle id="nodeJ3" cx="720" cy="190" r="26" fill="#10b981" stroke="#ffffff" stroke-width="3"/>
+                    <text x="720" y="196" font-size="14" font-weight="800" fill="#ffffff" text-anchor="middle">J3</text>
+                    <text x="720" y="235" font-size="12" font-weight="600" fill="#94a3b8" text-anchor="middle">Hospital Exit</text>
+
+                    <!-- Hospital Terminal -->
+                    <g transform="translate(805, 165)">
+                        <rect x="0" y="0" width="55" height="50" rx="8" fill="#1e293b" stroke="#dc2626" stroke-width="2"/>
+                        <text x="27" y="26" font-size="18" text-anchor="middle">🏥</text>
+                        <text x="27" y="42" font-size="9" font-weight="800" fill="#ef4444" text-anchor="middle">TRAUMA</text>
+                    </g>
+
+                    <!-- Ambulance Sprite Group -->
+                    <g id="ambulanceSprite" transform="translate(60, 170)" style="display: none;">
+                        <circle cx="20" cy="20" r="22" fill="#ef4444" opacity="0.3">
+                            <animate attributeName="r" values="18;26;18" dur="1s" repeatCount="indefinite"/>
+                        </circle>
+                        <rect x="2" y="8" width="36" height="24" rx="6" fill="#f8fafc" stroke="#dc2626" stroke-width="2.5"/>
+                        <text x="20" y="24" font-size="14" text-anchor="middle" font-weight="900" fill="#dc2626">🚑</text>
+                    </g>
+                </svg>
+            </div>
+        </section>
+
+        <!-- Demos Section -->
+        <div class="grid-2">
+            <!-- Demo 1: School Bell -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🔔 Demo 1 — School Bell</span>
+                    <span id="bellStatusBadge" class="badge badge-safe">Normal Cycle</span>
+                </div>
+                <p style="font-size: 0.88rem; color: var(--text-muted);">
+                    When the timetable triggers the bell window, the agent detects pedestrian arrival surge and lengthens pedestrian green time.
+                </p>
+
+                <div id="demo1Box" class="demo-box">
+                    <div id="demo1NormalView">
+                        <div class="demo-label">Normal pedestrian green:</div>
+                        <div class="demo-val-normal" style="font-size: 2.2rem; color: #38bdf8;">20 sec</div>
+                    </div>
+                    <div id="demo1BellView" style="display: none;">
+                        <div class="demo-label">Normal pedestrian green:</div>
+                        <div class="demo-val-normal demo-val-struck">20 sec</div>
+                        <div class="demo-alert-title" style="color: #38bdf8;">🔔 School bell detected!</div>
+                        <div class="demo-label" style="margin-top: 6px;">Pedestrian green:</div>
+                        <div class="demo-val-active" style="color: #22c55e;">40 sec</div>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn-primary" onclick="setSchoolBell(true)">🔔 School Bell ON</button>
+                    <button class="btn-secondary" onclick="setSchoolBell(false)">⚪ Normal Traffic</button>
+                </div>
+            </div>
+
+            <!-- Demo 2: Ambulance -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🚑 Demo 2 — Ambulance Corridor</span>
+                    <span id="ambStatusBadge" class="badge badge-sandbox">No Request</span>
+                </div>
+                <p style="font-size: 0.88rem; color: var(--text-muted);">
+                    Inbound emergency vehicle request lists corridor junctions to hold and dynamically quantifies the side-effect delay.
+                </p>
+
+                <div id="demo2Box" class="demo-box">
+                    <div id="demo2IdleView">
+                        <div class="demo-label">Ambulance Request:</div>
+                        <div class="demo-val-normal" style="font-size: 1.1rem; color: #64748b;">Idle (No active emergency)</div>
+                    </div>
+                    <div id="demo2ActiveView" style="display: none;">
+                        <div class="demo-alert-title" style="color: #ef4444; margin-top: 0;">🚑 Ambulance request</div>
+                        <div class="demo-label" style="margin-top: 6px;">Route:</div>
+                        <div id="demo2RouteText" class="demo-val-normal" style="font-size: 1.4rem; color: #f8fafc;">J1 → J2 → J3</div>
+                        <div class="demo-label" style="margin-top: 8px;">Holding:</div>
+                        <div id="demo2HoldingList" style="font-family: monospace; font-size: 1.1rem; color: #fca5a5; line-height: 1.4;">
+                            J1<br>J2<br>J3
+                        </div>
+                        <div class="demo-label" style="margin-top: 10px;">Extra delay to normal traffic:</div>
+                        <div id="demo2DelayText" class="demo-val-active" style="color: #f59e0b;">25 sec</div>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn-emergency" onclick="dispatchAmbulance()">🚑 Dispatch Ambulance</button>
+                    <button class="btn-secondary" onclick="clearCorridor()">🏁 Clear Corridor</button>
+                </div>
+
+                <div class="toggle-switch">
+                    <input type="checkbox" id="j2BlockToggle" onchange="toggleJ2Block(this.checked)">
+                    <label for="j2BlockToggle">⚠️ Simulate J2 Blockage (Trigger Fallback via J4)</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rule 1 & Rule 2: Hold-Time Cap & Human Approval Gate -->
+        <section id="gateCard" class="gate-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="font-size: 1.25rem; font-weight: 800;">🛡️ Rule 1 & Rule 2: Hold-Time Cap & Human Approval Gate</h2>
+                    <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 4px;">
+                        Rule 1: Maximum hold = 60s. Rule 2: AI cannot self-extend; fresh human click required for +30s.
+                    </p>
+                </div>
+                <div style="text-align: right;">
+                    <span style="font-size: 0.85rem; color: var(--text-muted);">Elapsed Hold:</span>
+                    <span id="elapsedDisplay" style="font-size: 1.4rem; font-weight: 800; font-family: monospace; color: #38bdf8;">0s</span>
+                    <span style="font-size: 0.9rem; color: var(--text-muted);">/ <span id="capDisplay">60</span>s Cap</span>
+                </div>
+            </div>
+
+            <div class="progress-bar-bg">
+                <div id="progressBar" class="progress-bar-fill"></div>
+            </div>
+
+            <div style="display: flex; gap: 15px; align-items: center; margin-top: 10px;">
+                <input type="range" id="holdSlider" min="0" max="120" value="0" step="5" style="flex: 1; cursor: pointer;" oninput="onHoldSliderChange(this.value)">
+                <span style="font-size: 0.85rem; color: var(--text-muted); min-width: 140px;">Slide to test 60s cap</span>
+            </div>
+
+            <div id="gateAlert" class="gate-alert-msg">
+                <h3 style="color: #f87171; margin-bottom: 6px;">⚠️ RULE 1 CAP REACHED (60s): INDEFINITE HOLD BLOCKED</h3>
+                <p style="font-size: 0.92rem; color: #fecaca;">
+                    Traffic cannot be stopped forever. The AI is prevented from auto-extending. A <b>fresh human click</b> is required to grant +30 seconds.
+                </p>
+                <div class="btn-group" style="margin-top: 14px;">
+                    <button class="btn-primary" onclick="approveExtension()">🔘 Extend Hold (+30s)</button>
+                    <button class="btn-secondary" onclick="clearCorridor()">❌ Release Traffic</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // State variables
+        let isBellActive = false;
+        let isAmbulanceActive = false;
+        let isJ2Blocked = false;
+        let elapsedHold = 0;
+        let maxHoldCap = 60;
+        let isGateActive = false;
+
+        // Elements
+        const demo1NormalView = document.getElementById('demo1NormalView');
+        const demo1BellView = document.getElementById('demo1BellView');
+        const demo1Box = document.getElementById('demo1Box');
+        const bellStatusBadge = document.getElementById('bellStatusBadge');
+
+        const demo2IdleView = document.getElementById('demo2IdleView');
+        const demo2ActiveView = document.getElementById('demo2ActiveView');
+        const demo2Box = document.getElementById('demo2Box');
+        const demo2RouteText = document.getElementById('demo2RouteText');
+        const demo2HoldingList = document.getElementById('demo2HoldingList');
+        const demo2DelayText = document.getElementById('demo2DelayText');
+        const ambStatusBadge = document.getElementById('ambStatusBadge');
+
+        const pedBadgeBg = document.getElementById('pedBadgeBg');
+        const pedBadgeText = document.getElementById('pedBadgeText');
+
+        const nodeJ1 = document.getElementById('nodeJ1');
+        const nodeJ2 = document.getElementById('nodeJ2');
+        const nodeJ3 = document.getElementById('nodeJ3');
+        const nodeJ4 = document.getElementById('nodeJ4');
+
+        const mainCorridorLine = document.getElementById('mainCorridorLine');
+        const bypassCorridorLine = document.getElementById('bypassCorridorLine');
+        const ambulanceSprite = document.getElementById('ambulanceSprite');
+
+        const gateCard = document.getElementById('gateCard');
+        const gateAlert = document.getElementById('gateAlert');
+        const progressBar = document.getElementById('progressBar');
+        const elapsedDisplay = document.getElementById('elapsedDisplay');
+        const capDisplay = document.getElementById('capDisplay');
+        const holdSlider = document.getElementById('holdSlider');
+
+        function setSchoolBell(active) {
+            isBellActive = active;
+            if (active) {
+                demo1NormalView.style.display = 'none';
+                demo1BellView.style.display = 'block';
+                demo1Box.classList.add('active-bell');
+                bellStatusBadge.innerText = 'BELL PRIORITY (40s)';
+                bellStatusBadge.className = 'badge badge-safe';
+                pedBadgeBg.setAttribute('fill', '#3b82f6');
+                pedBadgeText.textContent = '🚸 CROSSING: 40s';
+            } else {
+                demo1NormalView.style.display = 'block';
+                demo1BellView.style.display = 'none';
+                demo1Box.classList.remove('active-bell');
+                bellStatusBadge.innerText = 'NORMAL CYCLE (20s)';
+                bellStatusBadge.className = 'badge badge-safe';
+                pedBadgeBg.setAttribute('fill', '#10b981');
+                pedBadgeText.textContent = '🚸 CROSSING: 20s';
+            }
+        }
+
+        function dispatchAmbulance() {
+            isAmbulanceActive = true;
+            elapsedHold = 50; // Demo benchmark producing 25s extra delay
+            holdSlider.value = elapsedHold;
+            updateCorridorState();
+        }
+
+        function clearCorridor() {
+            isAmbulanceActive = false;
+            elapsedHold = 0;
+            maxHoldCap = 60;
+            holdSlider.value = 0;
+            updateCorridorState();
+        }
+
+        function toggleJ2Block(blocked) {
+            isJ2Blocked = blocked;
+            updateCorridorState();
+        }
+
+        function onHoldSliderChange(val) {
+            elapsedHold = parseInt(val);
+            updateCorridorState();
+        }
+
+        function approveExtension() {
+            maxHoldCap += 30;
+            isGateActive = false;
+            updateCorridorState();
+        }
+
+        function updateCorridorState() {
+            elapsedDisplay.textContent = elapsedHold + 's';
+            capDisplay.textContent = maxHoldCap;
+
+            const pct = Math.min(100, (elapsedHold / maxHoldCap) * 100);
+            progressBar.style.width = pct + '%';
+
+            // Cap Check (Rule 1 & Rule 2)
+            if (isAmbulanceActive && elapsedHold >= maxHoldCap) {
+                isGateActive = true;
+                gateCard.classList.add('cap-reached');
+                gateAlert.classList.add('visible');
+                progressBar.classList.add('warning');
+            } else {
+                isGateActive = false;
+                gateCard.classList.remove('cap-reached');
+                gateAlert.classList.remove('visible');
+                progressBar.classList.remove('warning');
+            }
+
+            if (!isAmbulanceActive) {
+                demo2IdleView.style.display = 'block';
+                demo2ActiveView.style.display = 'none';
+                demo2Box.classList.remove('active-amb');
+                ambStatusBadge.innerText = 'NO REQUEST';
+                ambStatusBadge.className = 'badge badge-sandbox';
+                ambulanceSprite.style.display = 'none';
+
+                // Reset nodes to normal
+                nodeJ1.setAttribute('fill', '#10b981');
+                nodeJ2.setAttribute('fill', isJ2Blocked ? '#f59e0b' : '#10b981');
+                nodeJ3.setAttribute('fill', '#10b981');
+                nodeJ4.setAttribute('fill', '#10b981');
+                mainCorridorLine.setAttribute('stroke', '#334155');
+                bypassCorridorLine.setAttribute('stroke', '#475569');
+                return;
+            }
+
+            // Ambulance Active
+            demo2IdleView.style.display = 'none';
+            demo2ActiveView.style.display = 'block';
+            demo2Box.classList.add('active-amb');
+            ambulanceSprite.style.display = 'block';
+
+            let route = [];
+            let heldList = [];
+
+            if (isJ2Blocked) {
+                route = ['J1', 'J4', 'J3'];
+                heldList = ['J1', 'J4', 'J3'];
+                demo2RouteText.textContent = 'J1 → J4 → J3 (Fallback)';
+                ambStatusBadge.innerText = 'FALLBACK CORRIDOR';
+                ambStatusBadge.className = 'badge badge-emergency';
+
+                nodeJ1.setAttribute('fill', '#ef4444');
+                nodeJ4.setAttribute('fill', '#ef4444');
+                nodeJ3.setAttribute('fill', '#ef4444');
+                nodeJ2.setAttribute('fill', '#f59e0b'); // Blocked/delayed
+
+                mainCorridorLine.setAttribute('stroke', '#334155');
+                bypassCorridorLine.setAttribute('stroke', '#38bdf8');
+
+                // Animate ambulance along fallback
+                const ambX = Math.min(740, 140 + (elapsedHold * 5.2));
+                const ambY = (ambX > 250 && ambX < 600) ? 70 : 170;
+                ambulanceSprite.setAttribute('transform', `translate(${ambX}, ${ambY})`);
+            } else {
+                route = ['J1', 'J2', 'J3'];
+                heldList = ['J1', 'J2', 'J3'];
+                demo2RouteText.textContent = 'J1 → J2 → J3';
+                ambStatusBadge.innerText = 'PRIORITY CORRIDOR';
+                ambStatusBadge.className = 'badge badge-emergency';
+
+                nodeJ1.setAttribute('fill', '#ef4444');
+                nodeJ2.setAttribute('fill', '#ef4444');
+                nodeJ3.setAttribute('fill', '#ef4444');
+                nodeJ4.setAttribute('fill', '#10b981');
+
+                mainCorridorLine.setAttribute('stroke', '#38bdf8');
+                bypassCorridorLine.setAttribute('stroke', '#475569');
+
+                // Animate ambulance along main arterial
+                const ambX = Math.min(740, 140 + (elapsedHold * 5.8));
+                ambulanceSprite.setAttribute('transform', `translate(${ambX}, 170)`);
+            }
+
+            demo2HoldingList.innerHTML = heldList.join('<br>');
+            const extraDelay = Math.round(elapsedHold / 2);
+            demo2DelayText.textContent = extraDelay + ' sec';
+        }
+
+        // Initialize state
+        setSchoolBell(false);
+        updateCorridorState();
+    </script>
+</body>
+</html>
